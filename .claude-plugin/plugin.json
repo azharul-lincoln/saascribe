@@ -1,0 +1,9 @@
+{
+  "name": "saascribe-lincoln",
+  "displayName": "SaaScribe Lincoln",
+  "version": "0.1.0",
+  "description": "A guide and optional reference code for Stripe subscription billing in SaaS apps: checkout, plan upgrades and downgrades, billing state, webhooks, cancellation, failed payments and go-live.",
+  "author": { "name": "Lincoln" },
+  "license": "MIT",
+  "keywords": ["stripe", "subscriptions", "billing", "saas", "upgrade", "downgrade", "webhooks"]
+}

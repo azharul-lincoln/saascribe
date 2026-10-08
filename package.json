@@ -1,0 +1,17 @@
+{
+  "name": "saascribe-lincoln-dev",
+  "private": true,
+  "type": "module",
+  "description": "Development workspace for the SaaScribe Lincoln skill templates. Not published; the templates are copied into apps.",
+  "scripts": {
+    "test": "node --test skills/saascribe/templates/core/*.test.ts skills/saascribe/templates/services/*.test.ts skills/saascribe/templates/adapters/http/*.test.ts",
+    "test:deno": "deno test --no-lock skills/saascribe/templates/core/",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "@types/node": "^22",
+    "stripe": "^23.0.0",
+    "typescript": "^5.9"
+  }
+}
