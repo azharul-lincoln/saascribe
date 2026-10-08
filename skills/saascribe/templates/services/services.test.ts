@@ -594,6 +594,12 @@ test("lookup: a row or a customer that belongs to another user is never the call
   const asB = await changePlan(deps, { id: "user_b", email: "a@example.com", emailVerified: true }, { action: "preview", plan: "team" });
   assert.equal(asB.body.code, "no_subscription");
 
+  // The first link also claims the Stripe customer, so the claim survives a change of the row's email.
+  assert.equal(world.customers.cus_1.metadata?.app_user_id, "user_a");
+  store.rows[0].email = "a-new@example.com";
+  const afterMove = await changePlan(deps, { id: "user_b", email: "a@example.com", emailVerified: true }, { action: "preview", plan: "team" });
+  assert.equal(afterMove.body.code, "no_subscription");
+
   // A customer claimed through metadata is ignored for anyone else too.
   const claimed = baseWorld([subscription("sub_1", PRICES.pro, "active")]);
   claimed.customers.cus_1.metadata = { app_user_id: "user_a" };

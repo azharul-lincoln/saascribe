@@ -65,8 +65,9 @@ effect ran on the older plan: run it once more towards the plan the row keeps, s
 
 ## Finding the customer
 
-- For a signed-in user, skip a row that already belongs to another user, and a customer found by email whose
-  `metadata.app_user_id` names another user. An address can move between accounts (one user changes theirs, another
+- For a signed-in user, skip a row that already belongs to another user, and a customer found by email that is
+  linked to another user: by `metadata.app_user_id`, or by the row that stores its id. Write `app_user_id` onto the
+  customer the first time a row links it to a user, so the claim holds even after the row's email changes. An address can move between accounts (one user changes theirs, another
   registers it); the email alone would then hand over the first user's billing. When a user changes their email, update
   the billing row and the Stripe customer too, or the old address keeps pointing at their row.
 

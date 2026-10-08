@@ -47,10 +47,14 @@ export async function resolveCustomer(
     const { data } = await deps.stripe.customers.list({ email: candidate, limit: 1 });
     const customer = data[0];
     if (!customer) continue;
-    const claimedBy = customer.metadata?.app_user_id;
-    if (keys.userId && ((foreign && customer.id === found?.stripeCustomerId) || (claimedBy && claimedBy !== keys.userId))) {
-      deps.log.info("Customer found by email belongs to another user; ignored", { customerId: customer.id });
-      return null;
+    if (keys.userId) {
+      // The email alone proves nothing about ownership: check who the customer is linked to.
+      const claimedBy = customer.metadata?.app_user_id;
+      const owner = await deps.store.find({ customerId: customer.id });
+      if ((claimedBy && claimedBy !== keys.userId) || (owner?.userId && owner.userId !== keys.userId)) {
+        deps.log.info("Customer found by email belongs to another user; ignored", { customerId: customer.id });
+        return null;
+      }
     }
     return customer;
   }
@@ -147,6 +151,7 @@ export async function applyState(
   if (change) await onPlanChange!(change);
 
   const saved = await deps.store.save(stateToWrite(state, { email: ctx.email, userId, syncToken }));
+  if (saved.saved && saved.userId && !existing?.userId && state.customerId) await claimCustomer(deps, state.customerId, saved.userId);
   if (!saved.saved) {
     deps.log.info("Billing row already holds a newer Stripe read; older write skipped", { customerId: state.customerId });
     if (change && saved.previousPlan && saved.previousPlan !== change.to) {
@@ -154,6 +159,23 @@ export async function applyState(
     }
   }
   return { state, rowId: saved.rowId, userId: saved.userId, email: ctx.email, previousPlan, saved: saved.saved };
+}
+
+/**
+ * Marks the Stripe customer as this user's the first time a row links them (`metadata.app_user_id`),
+ * so a later lookup by email can tell it is taken even if the row's email has changed. Never
+ * replaces another user's claim.
+ */
+async function claimCustomer(deps: BillingDeps, customerId: string, userId: string): Promise<void> {
+  const customer = await deps.stripe.customers.retrieve(customerId);
+  if ("deleted" in customer && customer.deleted) return;
+  const claimedBy = (customer as Stripe.Customer).metadata?.app_user_id;
+  if (claimedBy === userId) return;
+  if (claimedBy) {
+    deps.log.error("Stripe customer is claimed by another user", { customerId });
+    return;
+  }
+  await deps.stripe.customers.update(customerId, { metadata: { app_user_id: userId } });
 }
 
 /** Recomputes a customer's row from Stripe. Throws instead of writing a partial answer. */
