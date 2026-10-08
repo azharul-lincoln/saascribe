@@ -32,14 +32,15 @@ Pick one of the two; installing both loads the skill twice.
 As a plugin (recommended, gets updates). The slash command is `/saascribe-lincoln:saascribe`:
 
 ```
-/plugin marketplace add <path or git URL of this repository>
+/plugin marketplace add azharul-lincoln/saascribe-lincoln
 /plugin install saascribe-lincoln@saascribe-lincoln
 ```
 
 As a personal skill, for a plain `/saascribe` command:
 
 ```
-ln -s "$(pwd)/skills/saascribe" ~/.claude/skills/saascribe
+git clone https://github.com/azharul-lincoln/saascribe-lincoln.git
+ln -s "$(pwd)/saascribe-lincoln/skills/saascribe" ~/.claude/skills/saascribe
 ```
 
 Either way Claude also picks the skill up on its own when you ask for subscription billing work.
