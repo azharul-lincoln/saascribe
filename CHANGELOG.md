@@ -14,4 +14,5 @@ First version.
   (`abandon_payment`) or the pending update expires (`customer.subscription.pending_update_expired`).
 - Unverified emails reach nothing: billing routes refuse a session whose email is not verified, the post-payment page
   creates an unconfirmed account and mails a confirm link instead of taking a password, and an anonymous checkout never
-  overwrites an existing customer's details.
+  overwrites an existing customer's details. The post-payment page answers the same way whether or not an account
+  exists, and sends a confirm or sign-in link by email. A row or customer owned by another user is never matched by email.

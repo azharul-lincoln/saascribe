@@ -7,7 +7,7 @@ import { changePlan } from "../../services/change-plan.ts";
 import { createCheckoutSession, createSubscriptionFirst } from "../../services/checkout.ts";
 import { listInvoices } from "../../services/invoices.ts";
 import { createPortalSession } from "../../services/portal.ts";
-import { checkPostPaymentAccount, completePostPaymentSignup } from "../../services/post-payment.ts";
+import { completePostPaymentSignup } from "../../services/post-payment.ts";
 import { saveAccountDetails } from "../../services/profile.ts";
 import type { ServiceResult } from "../../services/result.ts";
 import { getBillingStatus } from "../../services/status.ts";
@@ -19,7 +19,7 @@ import { handleWebhook } from "../../services/webhook.ts";
  * route handlers, Hono, Bun, Cloudflare Workers. Express wraps this (`express.ts`).
  *
  * Every route is POST with a JSON body. Who may call what:
- * - Public (no session): `checkout-session`, `checkout-subscription`, `post-payment/account`,
+ * - Public (no session): `checkout-session`, `checkout-subscription`,
  *   `post-payment/signup` (the checkout proof is the authentication), `webhook` (Stripe signature).
  * - Signed in: `status`, `change-plan`, `cancel`, `resume`, `invoices`, `portal`, `account-details`.
  * - Admin: `audit`.
@@ -47,7 +47,6 @@ export interface BillingHttpOptions {
 export type BillingRoute =
   | "checkout-session"
   | "checkout-subscription"
-  | "post-payment/account"
   | "post-payment/signup"
   | "webhook"
   | "status"
@@ -60,7 +59,7 @@ export type BillingRoute =
   | "audit";
 
 const ROUTES: ReadonlySet<string> = new Set<BillingRoute>([
-  "checkout-session", "checkout-subscription", "post-payment/account", "post-payment/signup", "webhook", "status",
+  "checkout-session", "checkout-subscription", "post-payment/signup", "webhook", "status",
   "change-plan", "cancel", "resume", "invoices", "portal", "account-details", "audit",
 ]);
 
@@ -136,8 +135,6 @@ export function createBillingHandler(options: BillingHttpOptions) {
           return send(req, await createCheckoutSession(await deps(), { ...body, user, uiMode: body.uiMode === "embedded_page" ? "embedded_page" : "hosted_page" }));
         case "checkout-subscription":
           return send(req, await createSubscriptionFirst(await deps(), { ...body, user } as Parameters<typeof createSubscriptionFirst>[1]));
-        case "post-payment/account":
-          return send(req, await checkPostPaymentAccount(await deps(), body));
         case "post-payment/signup":
           return send(req, await completePostPaymentSignup(await deps(), body));
         case "audit": {

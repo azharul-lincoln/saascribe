@@ -105,9 +105,11 @@ export interface SubscriberStore {
   listAll(): Promise<SubscriberRow[]>;
 }
 
-/** The app's user accounts, for the post-payment signup only. */
+/**
+ * The app's user accounts, for the post-payment page only. Neither method may tell the caller
+ * whether an account exists: the page answers "we sent you a link" either way.
+ */
 export interface Identity {
-  findByEmail(email: string): Promise<{ userId: string; hasPassword: boolean } | null>;
   /**
    * Creates an UNCONFIRMED account with no password and returns a one-time link that confirms the
    * email and signs the person in, where they choose a password. Never a confirmed account: the
@@ -117,11 +119,14 @@ export interface Identity {
   createUnconfirmedUser(input: { email: string; redirectTo: string; metadata?: Record<string, string> }): Promise<
     { userId: string; confirmUrl: string } | { exists: true }
   >;
+  /** A one-time sign-in link for an existing account, or null when there is none. Sends nothing. */
+  createSignInLink(input: { email: string; redirectTo: string }): Promise<string | null>;
 }
 
 export type EmailType =
   | "welcome"
   | "confirm_email"
+  | "sign_in_link"
   | "subscription_confirmed"
   | "payment_receipt"
   | "payment_failed"

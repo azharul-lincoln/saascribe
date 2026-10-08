@@ -26,6 +26,11 @@ look for the same setting if a label differs.
 - [ ] A live endpoint to the production webhook URL, created on the code's API version, with exactly the handled events.
 - [ ] A test endpoint for staging. If both post to one URL, the inactive mode's events are dropped (`webhooks.md`).
 
+## Public endpoints
+
+- [ ] Checkout and post-payment routes are rate limited per IP and per email.
+- [ ] Billing routes refuse users whose email is not verified (`checkout.md`).
+
 ## Customer portal
 
 - [ ] Payment method update and invoice history on; customer information as wanted.

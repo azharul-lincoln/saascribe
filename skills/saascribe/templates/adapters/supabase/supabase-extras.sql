@@ -24,24 +24,3 @@ revoke all on function public.billing_hold_change(text, jsonb) from public, anon
 revoke all on function public.billing_take_held_change(text) from public, anon, authenticated;
 grant execute on function public.billing_hold_change(text, jsonb) to service_role;
 grant execute on function public.billing_take_held_change(text) to service_role;
-
--- One auth user by email, for the post-payment page. auth.admin.listUsers() returns one page only,
--- so past 50 accounts an existing customer would read as new. Service role only: anon access would
--- let anyone enumerate accounts. has_password: the account has an email identity, not only OAuth.
-create or replace function public.billing_auth_user_by_email(p_email text)
-returns table (user_id uuid, has_password boolean)
-language sql
-stable
-security definer
-set search_path = ''
-as $fn$
-  select u.id,
-         exists (select 1 from auth.identities i where i.user_id = u.id and i.provider = 'email')
-  from auth.users u
-  where lower(u.email) = lower(btrim(p_email))
-  order by u.created_at desc
-  limit 1;
-$fn$;
-
-revoke all on function public.billing_auth_user_by_email(text) from public, anon, authenticated;
-grant execute on function public.billing_auth_user_by_email(text) to service_role;

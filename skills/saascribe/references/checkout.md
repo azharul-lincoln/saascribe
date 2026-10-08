@@ -47,7 +47,9 @@ Many apps take payment before the account exists. The page Stripe returns to the
 person in. It has no session, so it needs another proof that this browser completed this checkout:
 
 - **Subscription first:** Stripe's return URL carries the intent id and its client secret
-  (`setup_intent` + `setup_intent_client_secret`, or the `payment_intent` pair). Only that browser has the secret.
+  (`setup_intent` + `setup_intent_client_secret`, or the `payment_intent` pair). The secret is in the URL too, so it can
+  leak through history the same way; the design below keeps a leaked proof harmless, and the nonce scheme from
+  Sessions can be added (hash in the subscription metadata) if you want it tighter.
   Retrieve the intent, compare the secret in constant time, require `succeeded` (or `processing` for a payment), a
   customer, and a recent `created`.
 - **Checkout Sessions:** `success_url` carries `{CHECKOUT_SESSION_ID}`, but a session id sits in the URL, history and
@@ -58,11 +60,22 @@ person in. It has no session, so it needs another proof that this browser comple
 Then act only on the email of that Stripe customer. An email in the URL is for display. Without valid proof, answer 403
 and offer sign-in and support.
 
+Hand nothing to the browser and answer the same way every time: "we sent a link to <email>". A new email gets a confirm
+link (below); an existing account gets a sign-in link. Then a proof that leaks, or a buyer who typed someone else's
+email, only ever sends that inbox a link, and the page never reveals whether an account exists.
+
 The proof shows who paid, not who owns the email they typed. Do not create a confirmed account with a password from it:
 anyone could pay with someone else's email and hold a confirmed account in that person's name, which their later
 sign-in, password reset or OAuth login then joins (account pre-hijacking). Create the account unconfirmed and without a
 password, mail a one-time link to the customer email, and ask for the password on the page the link opens. Another
 choice is to verify the email (a code) before checkout, then a confirmed account is safe.
+
+## What the public checkout reveals
+
+Refusing an email that already pays (409 `already_subscribed`) tells an anonymous caller that the address has a plan.
+That is the price of never charging someone twice, much like "this email is already registered" on a signup form. Rate
+limit the public checkout endpoints, per IP and per email. If that disclosure matters for your product, answer
+anonymous callers the same way every time and send the "you already have a plan, sign in" message by email instead.
 
 ## Verified email on every billing route
 

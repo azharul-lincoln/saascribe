@@ -19,12 +19,19 @@ import { loadCatalog } from "./catalog.ts";
  * The Stripe customer behind an account. The stored customer id comes first: Stripe's email
  * search is case-sensitive and never returns test-clock customers. A stored id from the other
  * Stripe mode reads as `resource_missing` and falls through to the email.
+ *
+ * For a signed-in caller (`userId` set), a row or customer that already belongs to another user is
+ * never theirs, even when the email matches: an address can move from one account to another (the
+ * first user changes theirs, a second one registers it), and the email would otherwise hand the
+ * second user the first one's billing.
  */
 export async function resolveCustomer(
   deps: BillingDeps,
   keys: { userId?: string | null; email?: string | null },
 ): Promise<Stripe.Customer | null> {
-  const row = await deps.store.find(keys);
+  const found = await deps.store.find(keys);
+  const foreign = Boolean(keys.userId && found?.userId && found.userId !== keys.userId);
+  const row = foreign ? null : found;
   if (row?.stripeCustomerId) {
     try {
       const customer = await deps.stripe.customers.retrieve(row.stripeCustomerId);
@@ -38,7 +45,14 @@ export async function resolveCustomer(
   if (!email) return null;
   for (const candidate of new Set([email, email.toLowerCase()])) {
     const { data } = await deps.stripe.customers.list({ email: candidate, limit: 1 });
-    if (data[0]) return data[0];
+    const customer = data[0];
+    if (!customer) continue;
+    const claimedBy = customer.metadata?.app_user_id;
+    if (keys.userId && ((foreign && customer.id === found?.stripeCustomerId) || (claimedBy && claimedBy !== keys.userId))) {
+      deps.log.info("Customer found by email belongs to another user; ignored", { customerId: customer.id });
+      return null;
+    }
+    return customer;
   }
   return null;
 }

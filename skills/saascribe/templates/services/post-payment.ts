@@ -50,34 +50,41 @@ export async function verifyCheckoutProof(
   return { customer: customer as Stripe.Customer, email };
 }
 
-/** Does the person who just paid already have an account, and does it have a password? */
-export async function checkPostPaymentAccount(deps: BillingDeps, body: unknown): Promise<ServiceResult> {
-  if (!deps.identity) throw new Error("checkPostPaymentAccount needs deps.identity");
-  const proof = parseCheckoutProof(body);
-  const checkout = proof ? await verifyCheckoutProof(deps, proof) : null;
-  if (!checkout) return NOT_VERIFIED;
-  const account = await deps.identity.findByEmail(checkout.email);
-  return ok({ exists: !!account, hasPassword: account?.hasPassword ?? false, email: checkout.email });
-}
-
 /**
- * Starts the account for the checkout's customer email. The proof shows this browser paid; it does
- * not show the buyer owns the email they typed. So the account is created unconfirmed and without a
- * password, and a link goes to that email: opening it confirms the address and signs them in, and
- * the app asks for a password there. Someone paying with another person's email gets nothing; the
- * owner of the inbox gets the account. Until then, billing routes refuse the unverified user.
+ * Sends the person who just paid a link to their account, by email. The proof shows this browser
+ * paid; it does not show the buyer owns the email they typed. So nothing is handed to the browser:
+ *
+ * - New email: the account is created unconfirmed and without a password, and a confirm link goes
+ *   to that inbox. Opening it confirms the address and signs them in; the app asks for a password
+ *   there. Until then, billing routes refuse the unverified user.
+ * - Existing account: a sign-in link goes to that inbox instead.
+ *
+ * The answer is the same either way, so the page never reveals whether an account exists. Someone
+ * paying with another person's email gets nothing; the owner of the inbox gets the account.
  */
 export async function completePostPaymentSignup(deps: BillingDeps, body: unknown): Promise<ServiceResult> {
   if (!deps.identity) throw new Error("completePostPaymentSignup needs deps.identity");
   const proof = parseCheckoutProof(body);
   const checkout = proof ? await verifyCheckoutProof(deps, proof) : null;
-  if (!checkout) return NOT_VERIFIED;
+  if (!proof || !checkout) return NOT_VERIFIED;
+  const proofId = proof.kind === "session" ? proof.sessionId : proof.intentId;
+  const redirectTo = `${deps.copy.appUrl}${deps.copy.billingPath}`;
+  const sent = ok({ email: checkout.email, linkSent: true });
 
-  const created = await deps.identity.createUnconfirmedUser({
-    email: checkout.email,
-    redirectTo: `${deps.copy.appUrl}${deps.copy.billingPath}`,
-  });
-  if ("exists" in created) return fail(409, "account_exists", "An account with this email already exists. Sign in instead.");
+  const created = await deps.identity.createUnconfirmedUser({ email: checkout.email, redirectTo });
+  if ("exists" in created) {
+    const url = await deps.identity.createSignInLink({ email: checkout.email, redirectTo });
+    if (url) {
+      await deps.mailer.send({
+        to: checkout.email,
+        type: "sign_in_link",
+        dedupeKey: `sign_in_link:${proofId}`,
+        userId: null,
+        data: { url },
+      });
+    }
+    return sent;
+  }
 
   let plan: string | null = null;
   try {
@@ -92,7 +99,7 @@ export async function completePostPaymentSignup(deps: BillingDeps, body: unknown
     type: "confirm_email",
     dedupeKey: `confirm_email:${created.userId}`,
     userId: created.userId,
-    data: { plan, confirmUrl: created.confirmUrl },
+    data: { plan, url: created.confirmUrl },
   });
-  return ok({ email: checkout.email, confirmationSent: true });
+  return sent;
 }

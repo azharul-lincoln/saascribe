@@ -65,6 +65,11 @@ effect ran on the older plan: run it once more towards the plan the row keeps, s
 
 ## Finding the customer
 
+- For a signed-in user, skip a row that already belongs to another user, and a customer found by email whose
+  `metadata.app_user_id` names another user. An address can move between accounts (one user changes theirs, another
+  registers it); the email alone would then hand over the first user's billing. When a user changes their email, update
+  the billing row and the Stripe customer too, or the old address keeps pointing at their row.
+
 - Use the stored `stripe_customer_id` first. Stripe's email search is case-sensitive and does not return test-clock
   customers.
 - Fall back to the email as typed and lowercased. A stored id from the other mode returns `resource_missing`; treat it as

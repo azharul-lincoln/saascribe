@@ -87,12 +87,6 @@ export function supabaseIdentity(admin: SupabaseClient): Identity & { authentica
       if (error || !data.user?.email) return null;
       return { id: data.user.id, email: data.user.email, emailVerified: Boolean(data.user.email_confirmed_at) };
     },
-    async findByEmail(email) {
-      const { data, error } = await admin.rpc("billing_auth_user_by_email", { p_email: email });
-      if (error) throw new Error(`billing_auth_user_by_email failed: ${error.message}`);
-      const row = (data as { user_id: string; has_password: boolean }[] | null)?.[0];
-      return row ? { userId: row.user_id, hasPassword: row.has_password } : null;
-    },
     async createUnconfirmedUser({ email, redirectTo, metadata }) {
       // An invite link creates the user unconfirmed and without a password; opening it confirms the
       // email and signs them in. generateLink does not send anything: the caller mails the link.
@@ -103,6 +97,14 @@ export function supabaseIdentity(admin: SupabaseClient): Identity & { authentica
         throw error;
       }
       return { userId: data.user.id, confirmUrl: data.properties.action_link };
+    },
+    async createSignInLink({ email, redirectTo }) {
+      const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email, options: { redirectTo } });
+      if (error) {
+        if ((error as { status?: number }).status === 404 || /not found/i.test(error.message)) return null;
+        throw error;
+      }
+      return data.properties.action_link;
     },
   };
 }

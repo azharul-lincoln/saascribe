@@ -218,8 +218,8 @@ function setup(world: World, mode: StripeMode = "live") {
     log: { info: () => {}, error: () => {} },
     copy: { supportEmail: "help@example.com", appUrl: "https://app.example.com", billingPath: "/billing", postCheckoutPath: "/welcome", cancelReasons: ["too_expensive"] },
     identity: {
-      findByEmail: async () => null,
       createUnconfirmedUser: async () => ({ userId: "user_new", confirmUrl: "https://auth.example.com/verify?token=t" }),
+      createSignInLink: async () => "https://auth.example.com/sign-in?token=s",
     },
   };
   return { deps, store, sent, stripe };
@@ -556,15 +556,50 @@ test("post-payment: the account starts unconfirmed and the confirm link goes to 
   const { deps, sent } = setup(world);
   const asked: Any[] = [];
   deps.identity = {
-    findByEmail: async () => null,
     createUnconfirmedUser: async (input) => {
       asked.push(input);
       return { userId: "user_new", confirmUrl: "https://auth.example.com/verify?token=t" };
     },
+    createSignInLink: async () => null,
   };
   const result = await completePostPaymentSignup(deps, { sessionId: "cs_test_abc", nonce, password: "ignored-now" });
-  assert.equal(result.body.confirmationSent, true);
+  assert.equal(result.body.linkSent, true);
   assert.equal(asked[0].email, "a@example.com");
   assert.equal("password" in asked[0], false, "no password is set before the email is confirmed");
-  assert.deepEqual(sent.map((m) => [m.type, m.to, m.data.confirmUrl]), [["confirm_email", "a@example.com", "https://auth.example.com/verify?token=t"]]);
+  assert.deepEqual(sent.map((m) => [m.type, m.to, m.data.url]), [["confirm_email", "a@example.com", "https://auth.example.com/verify?token=t"]]);
+});
+
+test("post-payment: an existing account gets a sign-in link by email, and the answer does not reveal it exists", async () => {
+  const nonce = "N".repeat(43);
+  const session = { id: "cs_test_abc", mode: "subscription", status: "complete", customer: "cus_1", subscription: "sub_1", created: NOW - 60, metadata: { checkout_nonce_hash: await hashCheckoutNonce(nonce) } };
+  const world = baseWorld([subscription("sub_1", PRICES.pro, "trialing")], { sessions: { cs_test_abc: session } });
+  const fresh = setup(world);
+  const newcomer = await completePostPaymentSignup(fresh.deps, { sessionId: "cs_test_abc", nonce });
+
+  const { deps, sent } = setup(world);
+  deps.identity = { createUnconfirmedUser: async () => ({ exists: true }), createSignInLink: async () => "https://auth.example.com/sign-in?token=s" };
+  const existing = await completePostPaymentSignup(deps, { sessionId: "cs_test_abc", nonce });
+  assert.deepEqual([existing.status, existing.body], [newcomer.status, newcomer.body], "same answer either way");
+  assert.deepEqual(sent.map((m) => [m.type, m.to]), [["sign_in_link", "a@example.com"]]);
+});
+
+// --- customer lookup ------------------------------------------------------------------------
+
+test("lookup: a row or a customer that belongs to another user is never the caller's, even with the same email", async () => {
+  const world = baseWorld([subscription("sub_1", PRICES.pro, "active")]);
+  const { deps, store } = setup(world);
+  // User A paid; then A changed their sign-in email and user B registered A's old address.
+  await applyState(deps, await readFresh(deps, "cus_1"), { email: "a@example.com", userId: "user_a" });
+  assert.equal(store.rows[0].userId, "user_a");
+  const asB = await changePlan(deps, { id: "user_b", email: "a@example.com", emailVerified: true }, { action: "preview", plan: "team" });
+  assert.equal(asB.body.code, "no_subscription");
+
+  // A customer claimed through metadata is ignored for anyone else too.
+  const claimed = baseWorld([subscription("sub_1", PRICES.pro, "active")]);
+  claimed.customers.cus_1.metadata = { app_user_id: "user_a" };
+  const other = setup(claimed);
+  const asC = await changePlan(other.deps, { id: "user_c", email: "a@example.com", emailVerified: true }, { action: "preview", plan: "team" });
+  assert.equal(asC.body.code, "no_subscription");
+  const asA = await changePlan(other.deps, { id: "user_a", email: "a@example.com", emailVerified: true }, { action: "preview", plan: "team" });
+  assert.equal(asA.status, 200);
 });
