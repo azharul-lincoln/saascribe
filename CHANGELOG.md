@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 (2026-10-08)
+
+- Renamed from `saascribe-lincoln` to `saascribe`: the plugin, the marketplace and the repository
+  (`azharul-lincoln/saascribe`). As a plugin the command is now `/saascribe:saascribe`.
+- The post-payment page answers the same way whether or not an account exists, and sends a confirm link or a sign-in
+  link by email. The account-check route is removed.
+- Customer lookup never returns a row or customer that belongs to another user, even when the email matches. The first
+  link writes `metadata.app_user_id` onto the Stripe customer, so the claim survives a change of the row's email.
+- Docs: what the public checkout reveals, rate limits on public routes, and new go-live checks.
+
 ## 0.1.0 (2026-10-08)
 
 First version.
@@ -14,5 +24,4 @@ First version.
   (`abandon_payment`) or the pending update expires (`customer.subscription.pending_update_expired`).
 - Unverified emails reach nothing: billing routes refuse a session whose email is not verified, the post-payment page
   creates an unconfirmed account and mails a confirm link instead of taking a password, and an anonymous checkout never
-  overwrites an existing customer's details. The post-payment page answers the same way whether or not an account
-  exists, and sends a confirm or sign-in link by email. A row or customer owned by another user is never matched by email.
+  overwrites an existing customer's details.
