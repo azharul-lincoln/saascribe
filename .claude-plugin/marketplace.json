@@ -1,12 +1,12 @@
 {
-  "name": "saascribe-lincoln",
+  "name": "saascribe",
   "owner": {
     "name": "Lincoln"
   },
   "description": "Lincoln's Claude Code plugins. SaaScribe: Stripe subscription billing for SaaS apps.",
   "plugins": [
     {
-      "name": "saascribe-lincoln",
+      "name": "saascribe",
       "source": "./",
       "description": "Stripe subscription billing guide for SaaS apps, with optional tested reference code."
     }

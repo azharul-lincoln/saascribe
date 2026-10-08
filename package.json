@@ -1,8 +1,8 @@
 {
-  "name": "saascribe-lincoln-dev",
+  "name": "saascribe-dev",
   "private": true,
   "type": "module",
-  "description": "Development workspace for the SaaScribe Lincoln skill templates. Not published; the templates are copied into apps.",
+  "description": "Development workspace for the SaaScribe skill templates. Not published; the templates are copied into apps.",
   "scripts": {
     "test": "node --test skills/saascribe/templates/core/*.test.ts skills/saascribe/templates/services/*.test.ts skills/saascribe/templates/adapters/http/*.test.ts",
     "test:deno": "deno test --no-lock skills/saascribe/templates/core/",

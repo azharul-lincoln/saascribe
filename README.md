@@ -1,4 +1,4 @@
-# SaaScribe Lincoln
+# SaaScribe
 
 A Claude Code skill for building Stripe subscription billing into a SaaS app: checkout, plan upgrades and downgrades,
 monthly and yearly switches, trials, billing state in your database, the Stripe webhook, cancellation, failed payments,
@@ -29,18 +29,18 @@ Distilled from the billing of a production SaaS. Targets Stripe API `2026-09-30.
 
 Pick one of the two; installing both loads the skill twice.
 
-As a plugin (recommended, gets updates). The slash command is `/saascribe-lincoln:saascribe`:
+As a plugin (recommended, gets updates). The slash command is `/saascribe:saascribe`:
 
 ```
-/plugin marketplace add azharul-lincoln/saascribe-lincoln
-/plugin install saascribe-lincoln@saascribe-lincoln
+/plugin marketplace add azharul-lincoln/saascribe
+/plugin install saascribe@saascribe
 ```
 
 As a personal skill, for a plain `/saascribe` command:
 
 ```
-git clone https://github.com/azharul-lincoln/saascribe-lincoln.git
-ln -s "$(pwd)/saascribe-lincoln/skills/saascribe" ~/.claude/skills/saascribe
+git clone https://github.com/azharul-lincoln/saascribe.git
+ln -s "$(pwd)/saascribe/skills/saascribe" ~/.claude/skills/saascribe
 ```
 
 Either way Claude also picks the skill up on its own when you ask for subscription billing work.
